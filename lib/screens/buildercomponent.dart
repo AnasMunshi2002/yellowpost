@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:yellowpost/localdb/dbservice.dart';
 import 'package:yellowpost/model%20class/Post.dart';
 import 'package:yellowpost/screens/viewPost.dart';
 import 'package:yellowpost/service/httpService.dart';
@@ -17,26 +16,13 @@ class MyBuilder extends StatefulWidget {
 }
 
 class _PostBuilderState extends State<MyBuilder> {
-  final _mypostBox = Hive.box('posts');
   HttpService httpService = HttpService();
-  DBService dbService = DBService();
+
+  final _mypostBox = Hive.box<Post>('posts');
   List<Post> visitedList = [];
-
-  fetchHive() {
-    List? list = _mypostBox.get('postsDB') ?? [];
-    if (list!.isNotEmpty || list != []) {
-      setState(() {
-        visitedList = List.generate(
-          list.length,
-          (index) => list[index][0],
-        );
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    fetchHive();
+    List<Post> visitedList = _mypostBox.values.toList();
     return FutureBuilder(
       future: httpService.getPosts(),
       builder: (context, snapshot) {
@@ -62,14 +48,16 @@ class _PostBuilderState extends State<MyBuilder> {
                 itemBuilder: (context, index) {
                   Post post = snapshot.data![index];
 
-                  if (visitedList.contains(post)) {
+                  if (_mypostBox.values.toList().any(
+                        (element) => element.id == post.id,
+                      )) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: GestureDetector(
                         onTap: () {
                           visitedList.add(post);
                           Fluttertoast.showToast(msg: "Marked As Read");
-                          markAsRead();
+                          markAsRead(post);
                           setBuilderState(() {});
                           Navigator.push(
                               context,
@@ -124,7 +112,7 @@ class _PostBuilderState extends State<MyBuilder> {
                                       PopupMenuItem(
                                           onTap: () {
                                             visitedList.add(post);
-                                            markAsRead();
+                                            markAsRead(post);
                                             setBuilderState(() {});
                                           },
                                           child: const ListTile(
@@ -165,9 +153,9 @@ class _PostBuilderState extends State<MyBuilder> {
                         onTap: () {
                           visitedList.add(post);
                           Fluttertoast.showToast(msg: "Marked As Read");
-                          markAsRead();
+                          markAsRead(post);
                           setBuilderState(() {});
-                          print(visitedList);
+
                           Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -222,8 +210,8 @@ class _PostBuilderState extends State<MyBuilder> {
                                           onTap: () {
                                             visitedList.add(post);
                                             setBuilderState(() {});
-                                            print(visitedList);
-                                            markAsRead();
+
+                                            markAsRead(post);
                                             Fluttertoast.showToast(
                                                 msg: "Marked As Read");
                                           },
@@ -266,8 +254,10 @@ class _PostBuilderState extends State<MyBuilder> {
     );
   }
 
-  markAsRead() {
-    _mypostBox.put('postsDB', [visitedList, "DONE"]);
+  markAsRead(Post post) {
+    if (!_mypostBox.values.contains(post)) {
+      _mypostBox.add(post);
+    }
     print('success');
   }
 }
